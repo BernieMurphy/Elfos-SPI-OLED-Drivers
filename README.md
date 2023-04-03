@@ -1,5 +1,5 @@
 # Elfos-SPI-OLED-Drivers
-Elf/OS drivers for an 1802/Mini system with the 1802/Mini SPI adapter board connected to an OLED display on port 0.
+Elf/OS drivers for an 1802/Mini system with the 1802/Mini SPI adapter board connected to an OLED display on port 0. This version also includes a driver and sample code to display images on a OLED display using  Mike Riley's 1802 Fortran II compiler.
 
 Introduction
 ------------
