@@ -1,0 +1,289 @@
+.options
+.runtime
+.vars
+C
+C  Fortran II OLED driver for 1802 SPI displays such as sh1106
+C
+C  Copyright 2023 by Bernard Murphy
+C
+C  Copyright 2023 by Gaston Williams
+C
+C  Based on code from the Elf-Elfos-OLED library
+C  Written by Tony Hefner
+C  Copyright 2022 by Tony Hefner
+C
+C  Based on code from Adafruit_SH110X library
+C  Written by Limor Fried/Ladyada for Adafruit Industries  
+C  Copyright 2012 by Adafruit Industries
+C 
+C SPI Expansion Board for the 1802/Mini Computer hardware
+C  Copyright 2022 by Tony Hefner
+C 
+    
+      BYTE text(9)
+     
+      CALL oled_init  
+      CALL oled_clear
+      
+      pi=3.14159
+      DO 1000  k = 1, 360 , 3
+      degree = k - 1
+C     convert degrees to radians
+      radian = pi/180.0 * degree
+      sine = sin(radian)
+C     Scale the plot to fit on a 128X64 oled display
+      IF (sine .LT. 0)   GOTO 300
+      j = 32. - sine *32.   
+      GOTO 500
+  300 j = 32. + abs(sine) *32. 
+      if ( j > 63) j=63      
+  500 i = k/3      
+      CALL oled_pixel(i,j) 
+C     CALL oled_display
+ 1000 CONTINUE
+
+C     Draw  x axis from (0,32) to (120,32) 
+C     left being (0,32) and  right being (120,32)  
+    
+      CALL oled_line(0,32,120,32)
+
+C     Draw y axis
+      CALL oled_line(60,0,60,63)
+
+      CALL oled_display
+
+      
+      text(1) = 'y'
+      text(2) = '='
+      text(3) = 'S'
+      text(4) = 'I'
+      text(5) = 'N'
+      text(6) = '('
+      text(7) = 'x'
+      text(8) = ')'
+      text(9) =  0
+      CALL oled_string(0,40,text)
+
+      CALL oled_display
+
+
+      WRITE(*,*)
+      WRITE(*,*) 'Done.'
+      STOP 
+      END
+      
+      SUBROUTINE oled_init                
+      asm
+      ldi   1                               ; indicate oled init
+      plo   rf
+oled: equ   09000h                          ; -> this must match oled_driver!
+      sep   r4  
+      dw    oled                            ; address of loaded oled driver
+      end
+      RETURN
+      END
+ 
+      SUBROUTINE oled_clear
+      asm
+      ldi   2                               ; indicate oled clear
+      plo   rf
+      sep   r4
+      dw    oled                            ; address of loaded oled driver
+      end
+      RETURN
+      END
+C      
+C     Inputs: Fortran local variable pointers for i, j
+C     Outputs: rd = i,j    
+C              rf.0 = 3 command byte for pixelDraw 
+C     
+      SUBROUTINE oled_pixel(i,j)
+      asm
+      ldi  (oled_pixel_i).0                ; get local pointer to i
+      plo  rd     
+      ldi  (oled_pixel_i).1
+      phi  rd                              ; and save
+      lda  rd                             
+      phi  rf                              ; now get pointer i
+      ldn  rd
+      plo  rf
+      inc  rf
+#ifdef  use32bits
+      inc  rf                              ; for 32 bit word ,
+      inc  rf                              ; skip 2 more bytes
+#endif                                     
+      ldn  rf                              ; get lsb value of i
+      plo  rd                              ; and store into rd.0  
+ 
+ 
+      ldi  (oled_pixel_j).0                ; now get local pointer to j
+      plo  rc     
+      ldi  (oled_pixel_j).1                ; and save
+      phi  rc
+      lda  rc
+      phi  rf
+      ldn  rc
+      plo  rf
+      inc  rf
+#ifdef  use32bits
+      inc  rf
+      inc  rf                              ; point to lsb 
+#endif                              
+      ldn  rf                              ; get lsb value of j
+      phi  rd                              ; and store into rd.1 
+      ldi   3                              ; indicate a pixel draw request
+      plo   rf
+      sep   r4
+      dw    oled                           ; call oled driver
+      end  
+      RETURN
+      END
+
+      SUBROUTINE oled_display
+      asm
+      ldi   4                              ; indicate oled display request
+      plo   rf
+      sep   r4
+      dw    oled                           ; address of loaded oled driver
+      end
+      RETURN
+      END
+C      
+C     Inputs: Fortran local variable pointers for i1,j1,i2,j2
+C     Outputs: rd = i1,j1    rc= i2,j2
+C              rf.0 = 5 command byte for oled display
+C     Work register = rb
+C
+      SUBROUTINE oled_line(i1,j1,i2,j2)
+      asm
+      ldi  (oled_line_i1).0                ; get pointer address of i1.0
+      plo  rd    
+      ldi  (oled_line_i1).1
+      phi  rd
+      lda  rd                             
+      phi  rf                              ; now get pointer i
+      ldn  rd
+      plo  rf                            
+      inc  rf
+#ifdef  use32bits
+      inc  rf
+      inc  rf      
+#endif                                     ; point to lsb
+      ldn  rf                              ; get lsb value of i1
+      plo  rd                              ; and store into rd.0
+;
+;   
+      ldi  (oled_line_j1).0                ; get address local pointer  j1
+      plo  rc     
+      ldi  (oled_line_j1).1                ; get address of j1.1
+      phi  rc
+      lda  rc
+      phi  rf
+      ldn  rc
+      plo  rf
+      inc  rf
+#ifdef  use32bits
+      inc  rf                              ; for 32 bit integer
+      inc  rf
+#endif                              
+      ldn  rf                              ; get lsb value of j1
+      phi  rd                              ; and store into rd.1;
+;
+;      
+      ldi  (oled_line_i2).0                ; get pointer address of i2.0
+      plo  rb    
+      ldi  (oled_line_i2).1
+      phi  rb
+      lda  rb                             
+      phi  rf                              ; now get pointer i
+      ldn  rb
+      plo  rf                            
+      inc  rf
+#ifdef  use32bits
+      inc  rf
+      inc  rf      
+#endif                                     ; point to lsb
+      ldn  rf                              ; get lsb value of i2
+      plo  rc                              ; and store into rc.0
+;
+;   
+      ldi  (oled_line_j2).0                ; get address local pointer  j1
+      plo  rb     
+      ldi  (oled_line_j2).1                ; get address of j1.1
+      phi  rb
+      lda  rb
+      phi  rf
+      ldn  rb
+      plo  rf
+      inc  rf
+#ifdef  use32bits
+      inc  rf                              ; for 32 bit integer
+      inc  rf
+#endif                              
+      ldn  rf                              ; get lsb value of j1
+      phi  rc       
+      ldi  5                               ; indicate a line draw request             
+      plo  rf
+      sep  r4                              ; call with x1,y1 in rd and x2,y2 in rc
+      dw   oled                       ,    ; call oled driver
+      end
+      RETURN
+      END
+
+      SUBROUTINE oled_string(i,j,str)
+      BYTE str(9)
+      asm
+      ldi  (oled_string_i).0                ; get local pointer to i
+      plo  rd     
+      ldi  (oled_string_i).1
+      phi  rd                              ; and save
+      lda  rd                             
+      phi  rf                              ; now get pointer i
+      ldn  rd
+      plo  rf
+      inc  rf
+#ifdef  use32bits
+      inc  rf                              ; for 32 bit word ,
+      inc  rf                              ; skip 2 more bytes
+#endif                                     
+      ldn  rf                              ; get lsb value of i
+      plo  rd                              ; and store into rd.0  
+                              
+
+;
+;
+      ldi  (oled_string_j).0                 ; now get local pointer to j
+      plo  rc     
+      ldi  (oled_string_j).1                 ; and save
+      phi  rc
+      lda  rc
+      phi  rf
+      ldn  rc
+      plo  rf
+      inc  rf
+#ifdef  use32bits
+      inc  rf
+      inc  rf                              ; point to lsb 
+#endif                              
+      ldn  rf                              ; get lsb value of j
+      phi  rd 
+
+      ldi  (oled_string_str).0              ; get local pointer to string
+      plo  rb     
+      ldi  (oled_string_str).1
+      phi  rb
+      lda  rb                               ; now get pointer to string
+      phi  rc                               ; and save in rc.1
+      ldn  rb                               ; also save in
+      plo  rc                               ; rc.0
+      ldi  6
+      plo  rf
+      sep  r4                              ; call with x,y in rd and -> text in rc
+      dw   oled     
+      end
+      RETURN
+      END
+
+
+
+                                                  
