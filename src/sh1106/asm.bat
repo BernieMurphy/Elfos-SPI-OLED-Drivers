@@ -1,1 +1,1 @@
-C:\Users\fours\Utilities\Asm02\asm02 -b -L -D1802MINIPLUS -pev2 %1
+D:\Asm02\asm02 -b -L -D1802MINIPLUS -pev2 %1
